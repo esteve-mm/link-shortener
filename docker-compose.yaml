@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  mariadb:
+    image: mariadb:10.3
+    ports:
+      - '3306:3306'
+    volumes:
+      - ${PWD}/mariadb_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: 'root'
+      MYSQL_DATABASE: 'shrtdb'
+      MYSQL_USER: 'admin'
+      MYSQL_PASSWORD: 'supersecret'
