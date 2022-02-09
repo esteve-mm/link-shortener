@@ -2,6 +2,7 @@ package org.shrtr.core.services;
 
 import lombok.RequiredArgsConstructor;
 import org.shrtr.core.controllers.AuthenticationController;
+import org.shrtr.core.controllers.SettingsController;
 import org.shrtr.core.domain.entities.User;
 import org.shrtr.core.domain.repositories.UsersRepository;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -31,6 +32,16 @@ public class UserService {
     user.setPassword(passwordEncoder.encode(request.getPassword()));
     user.setFirstName(request.getFirstName());
     user.setLastName(request.getLastName());
+
+    usersRepository.save(user);
+    return user;
+  }
+
+  @Transactional
+  public User updateUserRateLimitSettings(User user, SettingsController.RateLimitSettingsDto settings){
+
+    user.setMaxRequests(settings.getMaxRequests());
+    user.setMaxRequestsWindowMs(settings.getMaxRequestsWindowMs());
 
     usersRepository.save(user);
     return user;

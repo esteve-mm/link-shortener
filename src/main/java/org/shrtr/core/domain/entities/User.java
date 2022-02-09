@@ -21,6 +21,12 @@ public class User extends BaseEntity implements UserDetails {
   private String firstName;
   private String lastName;
 
+  @Column(name = "max_requests", nullable = false)
+  private long maxRequests;
+
+  @Column(name = "max_requests_time_window_ms", nullable = false)
+  private long maxRequestsWindowMs;
+
   @ManyToMany
   @JoinTable(
     name = "user_roles",
@@ -47,5 +53,9 @@ public class User extends BaseEntity implements UserDetails {
   @Override
   public boolean isCredentialsNonExpired() {
     return enabled;
+  }
+
+  public boolean hasRedirectRateLimit() {
+    return maxRequests > 0 && maxRequestsWindowMs > 0;
   }
 }

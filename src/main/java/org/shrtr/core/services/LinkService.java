@@ -2,6 +2,7 @@ package org.shrtr.core.services;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.shrtr.core.controllers.TooManyRequestsException;
 import org.shrtr.core.domain.entities.Link;
 import org.shrtr.core.domain.entities.LinkMetric;
 import org.shrtr.core.domain.entities.User;
@@ -11,7 +12,9 @@ import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Slf4j
@@ -29,6 +32,7 @@ public class LinkService {
 
     link.setOwner(user);
     link.setCounter(0);
+    link.setRedirectCounter(0);
     link.setShortened(randomStringAlphaNumeric(8));
     linksRepository.save(link);
     return link;
@@ -40,7 +44,7 @@ public class LinkService {
   }
 
   @Transactional
-  public Optional<Link> findForRedirect(String shortened) {
+  public Optional<Link> findForRedirect(String shortened, User user) {
 
     Optional<Link> byShortened = linksRepository.findByShortened(shortened);
 
@@ -49,21 +53,8 @@ public class LinkService {
     }
 
     var link = byShortened.get();
-    LocalDate date = LocalDate.now();
-    Optional<LinkMetric> byLinkAndDate = linkMetricsRepository.findByLinkAndDate(link, date);
-    LinkMetric linkMetric;
-    if (byLinkAndDate.isPresent()) {
-      linkMetric = byLinkAndDate.get();
-      linkMetric.setCount(linkMetric.getCount() + 1);
-    }
-    else {
-      linkMetric = new LinkMetric();
-      linkMetric.setLink(link);
-      linkMetric.setDate(date);
-      linkMetric.setCount(1);
-    }
-    log.info("Count of {} is {}", link.getShortened(), linkMetric.getCount());
-    linkMetricsRepository.save(linkMetric);
+    assertRateLimitIsNotExceeded(link, user);
+    registerRedirect(link);
 
     return byShortened;
   }
@@ -88,6 +79,56 @@ public class LinkService {
 
   public List<LinkMetric> findLinkMetrics(Link link, LocalDate from, LocalDate to) {
     return linkMetricsRepository.findAllByDateBetweenAndLink(from, to, link);
+  }
+
+  private void assertRateLimitIsNotExceeded(Link link, User user) {
+
+    // Not quite a reliable system as we are disregarding all previous requests once
+    // a time window has elapsed.
+
+    if (!user.hasRedirectRateLimit()){
+      return;
+    }
+
+    LocalDateTime now = LocalDateTime.now();
+
+    if (link.getRateLimitWindowStart() == null){
+      // first redirect ever
+      link.setRateLimitWindowStart(now);
+      link.setRedirectCounter(1);
+    }
+    else if (Duration.between(link.getRateLimitWindowStart(), now).toMillis() > user.getMaxRequestsWindowMs()) {
+      // expired window
+      link.setRateLimitWindowStart(now);
+      link.setRedirectCounter(1);
+    }
+    else {
+      // current window
+      if (link.getRedirectCounter() >= user.getMaxRequests()){
+        throw new TooManyRequestsException();
+      }
+      link.setRedirectCounter(link.getRedirectCounter() + 1);
+    }
+
+    linksRepository.save(link);
+  }
+
+  private void registerRedirect(Link link) {
+    LocalDate date = LocalDate.now();
+    Optional<LinkMetric> byLinkAndDate = linkMetricsRepository.findByLinkAndDate(link, date);
+    LinkMetric linkMetric;
+    if (byLinkAndDate.isPresent()) {
+      linkMetric = byLinkAndDate.get();
+      linkMetric.setCount(linkMetric.getCount() + 1);
+    }
+    else {
+      linkMetric = new LinkMetric();
+      linkMetric.setLink(link);
+      linkMetric.setDate(date);
+      linkMetric.setCount(1);
+    }
+    log.info("Count of {} is {}", link.getShortened(), linkMetric.getCount());
+    linkMetricsRepository.save(linkMetric);
   }
 
   private static String randomStringAlphaNumeric(int size) {
