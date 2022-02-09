@@ -6,8 +6,8 @@ services:
     ports:
       - '3306:3306'
     volumes:
-      - ${PWD}/mariadb_data:/var/lib/mysql
-    environment:
+      - C:/Users/EsteveMartín/mariadb_data:/var/lib/mysql
+    environment:677
       MYSQL_ROOT_PASSWORD: 'root'
       MYSQL_DATABASE: 'shrtdb'
       MYSQL_USER: 'admin'
