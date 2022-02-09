@@ -24,7 +24,7 @@ public class RedirectController {
     private final LinkService linkService;
 
     @GetMapping("/{shortened}")
-    public RedirectView getLinks(@PathVariable("shortened") String shortened) {
+    public RedirectView redirect(@PathVariable("shortened") String shortened) {
         log.info("Asked for redirect {}", shortened);
         return linkService.findForRedirect(shortened)
                 .map(link -> {
