@@ -23,6 +23,7 @@ import java.util.*;
 public class LinkService {
   private final LinksRepository linksRepository;
   private final LinkMetricsRepository linkMetricsRepository;
+  private final RateLimiting rateLimiting;
 
   @Transactional
   public Link create(String targetUrl, User user) {
@@ -82,35 +83,11 @@ public class LinkService {
   }
 
   private void assertRateLimitIsNotExceeded(Link link, User user) {
-
-    // Not quite a reliable system as we are disregarding all previous requests once
-    // a time window has elapsed.
-
-    if (!user.hasRedirectRateLimit()){
+    if (!rateLimiting.isEnabled(user))
       return;
-    }
 
-    LocalDateTime now = LocalDateTime.now();
-
-    if (link.getRateLimitWindowStart() == null){
-      // first redirect ever
-      link.setRateLimitWindowStart(now);
-      link.setRedirectCounter(1);
-    }
-    else if (Duration.between(link.getRateLimitWindowStart(), now).toMillis() > user.getMaxRequestsWindowMs()) {
-      // expired window
-      link.setRateLimitWindowStart(now);
-      link.setRedirectCounter(1);
-    }
-    else {
-      // current window
-      if (link.getRedirectCounter() >= user.getMaxRequests()){
-        throw new TooManyRequestsException();
-      }
-      link.setRedirectCounter(link.getRedirectCounter() + 1);
-    }
-
-    linksRepository.save(link);
+    if (rateLimiting.limitExceeded(link, user))
+      throw new TooManyRequestsException();
   }
 
   private void registerRedirect(Link link) {
