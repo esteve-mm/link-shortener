@@ -7,7 +7,7 @@ services:
       - '3306:3306'
     volumes:
       - C:/Users/EsteveMartín/mariadb_data:/var/lib/mysql
-    environment:677
+    environment:
       MYSQL_ROOT_PASSWORD: 'root'
       MYSQL_DATABASE: 'shrtdb'
       MYSQL_USER: 'admin'
