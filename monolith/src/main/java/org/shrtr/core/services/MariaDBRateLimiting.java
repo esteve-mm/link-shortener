@@ -1,7 +1,6 @@
 package org.shrtr.core.services;
 
 import lombok.RequiredArgsConstructor;
-import org.shrtr.core.controllers.TooManyRequestsException;
 import org.shrtr.core.domain.repositories.LinksRepository;
 import org.springframework.stereotype.Service;
 import org.shrtr.core.domain.entities.*;

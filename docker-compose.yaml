@@ -12,3 +12,28 @@ services:
       MYSQL_DATABASE: 'shrtdb'
       MYSQL_USER: 'admin'
       MYSQL_PASSWORD: 'supersecret'
+  monolith:
+    #image: estevemartin/monolith:latest
+    build:
+      context: monolith
+      dockerfile: Dockerfile
+    depends_on:
+      - mariadb
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATABASE_URL: 'jdbc:mariadb://mariadb:30306/shrtdb'
+    command: java -Djava.security.egd=file:/dev/./urandom -jar /app/target/shrtr-0.0.1-SNAPSHOT.jar
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+  tests:
+    build:
+      context: e2e-tests
+      dockerfile: Dockerfile
+    depends_on:
+      - monolith
+    environment:
+      BASE_URL: 'http://monolith:8080'

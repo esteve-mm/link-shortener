@@ -1,19 +1,12 @@
 package org.shrtr.core.controllers;
 
-import lombok.Builder;
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.shrtr.core.domain.entities.Link;
 import org.shrtr.core.domain.entities.User;
 import org.shrtr.core.services.LinkService;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.view.RedirectView;
-
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Slf4j
 @RestController

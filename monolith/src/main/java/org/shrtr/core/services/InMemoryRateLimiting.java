@@ -4,7 +4,6 @@ import lombok.*;
 import org.shrtr.core.domain.entities.Link;
 import org.shrtr.core.domain.entities.User;
 import org.springframework.context.annotation.Primary;
-import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;

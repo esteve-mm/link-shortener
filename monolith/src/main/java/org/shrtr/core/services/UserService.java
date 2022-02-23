@@ -5,7 +5,6 @@ import org.shrtr.core.controllers.AuthenticationController;
 import org.shrtr.core.controllers.SettingsController;
 import org.shrtr.core.domain.entities.User;
 import org.shrtr.core.domain.repositories.UsersRepository;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 

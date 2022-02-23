@@ -1,10 +1,8 @@
 package org.shrtr.core.config.security;
 
 import lombok.RequiredArgsConstructor;
-import org.shrtr.core.domain.entities.User;
 import org.shrtr.core.domain.repositories.UsersRepository;
 import org.springframework.http.HttpHeaders;
-import org.springframework.jdbc.core.StatementCreatorUtils;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,7 +19,6 @@ import java.io.IOException;
 import java.util.List;
 
 import static java.util.List.of;
-import static java.util.Optional.ofNullable;
 import static org.springframework.util.StringUtils.isEmpty;
 
 @Component
