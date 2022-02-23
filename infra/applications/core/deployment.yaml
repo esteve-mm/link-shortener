@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    component: core-deployment
+  name: core-deployment
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: core-deployment
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        component: core-deployment
+    spec:
+      containers:
+        - env:
+            - name: SPRING_DATASOURCE_URL
+              value: 'jdbc:mariadb://mariadb-service.default.svc.cluster.local:3306/shrtdb'
+          image: estevemartin/monolith:latest
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            successThreshold: 1
+            tcpSocket:
+              port: 8080
+            timeoutSeconds: 5
+          name: core-container
+          ports:
+            - containerPort: 8080
+              name: 8080tcp
+              protocol: TCP
+          readinessProbe:
+            failureThreshold: 14
+            initialDelaySeconds: 40
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 8080
+            timeoutSeconds: 5
+          resources:
+            limits:
+              memory: 500Mi
+            requests:
+              cpu: 200m
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
