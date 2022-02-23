@@ -22,7 +22,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATABASE_URL: 'jdbc:mariadb://mariadb:30306/shrtdb'
+      SPRING_DATASOURCE_URL: 'jdbc:mariadb://mariadb:3306/shrtdb'
     command: java -Djava.security.egd=file:/dev/./urandom -jar /app/target/shrtr-0.0.1-SNAPSHOT.jar
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
