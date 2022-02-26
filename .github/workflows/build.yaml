@@ -27,6 +27,4 @@ jobs:
         with:
           context: "{{defaultContext}}:monolith"
           push: true
-          tags: "estevemartin/monolith:latest,estevemartin/monolith:${{ env.GITHUB_SHA }}"
-      - name: Test
-        run: docker-compose up tests
+          tags: "${{ secrets.DOCKERHUB_USERNAME }}/monolith:latest,${{ secrets.DOCKERHUB_USERNAME }}/monolith:${{ env.GITHUB_SHA }}"
