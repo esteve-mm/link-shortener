@@ -1,5 +1,6 @@
 package org.shrtr.core.domain.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -12,6 +13,7 @@ import java.util.Set;
 @Table(name = "roles")
 @Getter
 @Setter
+@JsonIgnoreProperties("hibernateLazyInitializer")
 public class Role extends BaseEntity{
 
   private String name;

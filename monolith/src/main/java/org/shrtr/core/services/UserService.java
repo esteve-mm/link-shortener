@@ -5,6 +5,7 @@ import org.shrtr.core.controllers.AuthenticationController;
 import org.shrtr.core.controllers.SettingsController;
 import org.shrtr.core.domain.entities.User;
 import org.shrtr.core.domain.repositories.UsersRepository;
+import org.shrtr.core.events.EventService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +17,7 @@ import javax.validation.ValidationException;
 public class UserService {
   private final UsersRepository usersRepository;
   private final PasswordEncoder passwordEncoder;
+  private final EventService eventService;
 
   @Transactional
   public User create(AuthenticationController.CreateUserRequest request) {
@@ -33,6 +35,7 @@ public class UserService {
     user.setLastName(request.getLastName());
 
     usersRepository.save(user);
+    eventService.userCreated(user);
     return user;
   }
 

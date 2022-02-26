@@ -1,5 +1,6 @@
 package org.shrtr.core.domain.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -10,6 +11,7 @@ import java.time.LocalDate;
 @Table(name = "link_metrics")
 @Setter
 @Getter
+@JsonIgnoreProperties("hibernateLazyInitializer")
 public class LinkMetric extends BaseEntity {
 
     private LocalDate date;
