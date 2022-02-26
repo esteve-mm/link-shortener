@@ -22,9 +22,16 @@ jobs:
           username: estevemartin
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       -
-        name: Build and push
+        name: Build and push monolith
         uses: docker/build-push-action@v2
         with:
           context: "{{defaultContext}}:monolith"
           push: true
           tags: "estevemartin/monolith:latest,estevemartin/monolith:${{ github.sha }}"
+
+      - name: Build and push metrics-service
+        uses: docker/build-push-action@v2
+        with:
+          context: "{{defaultContext}}:metrics-service"
+          push: true
+          tags: "estevemartin/metrics-service:latest,estevemartin/metrics-service:${{ github.sha }}"

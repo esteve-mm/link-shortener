@@ -33,3 +33,5 @@ build/
 .vscode/
 .idea
 mariadb_data
+metrics-service/metrics-service/bin/
+metrics-service/metrics-service/obj/

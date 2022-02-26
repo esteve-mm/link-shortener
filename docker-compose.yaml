@@ -19,6 +19,7 @@ services:
       dockerfile: Dockerfile
     depends_on:
       - mariadb
+      - rabbitmq
     ports:
       - "8080:8080"
     environment:
@@ -43,3 +44,17 @@ services:
     ports:
       - "5672:5672" # RabbitMq messaging
       - "15672:15672" # Management website
+  metrics-service:
+    build:
+      context: metrics-service
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+      - monolith
+    environment:
+      RabbitMQ__Host: 'rabbitmq'
+      RabbitMQ__Port: '5672'
+      RabbitMQ__Username: "guest"
+      RabbitMQ__Password: "guest"
+      MetricsService__Entities: 'User,Role,Link,LinkMetric'
+      MetricsService__Events: 'Created,Updated,Deleted'
