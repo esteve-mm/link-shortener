@@ -27,4 +27,4 @@ jobs:
         with:
           context: "{{defaultContext}}:monolith"
           push: true
-          tags: "estevemartin/monolith:latest,estevemartin/monolith:${{ env.GITHUB_SHA }}"
+          tags: "estevemartin/monolith:latest,estevemartin/monolith:${{ github.sha }}"
