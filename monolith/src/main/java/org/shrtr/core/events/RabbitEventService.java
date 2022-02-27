@@ -36,15 +36,15 @@ public class RabbitEventService implements EventService {
      *
      * Events will be sent using routing keys with the following format:
      *
-     *      | exchange     | type   | routing key        |
-     *      |--------------------------------------------|
-     *      | user         | topic  | user.registered    |
-     *      | user         | topic  | user.event.created |
-     *      | user         | topic  | user.event.updated |
-     *      | user         | topic  | user.event.deleted |
-     *      | link         | topic  | link.event.created |
-     *      | link         | topic  | link.event.updated |
-     *      | link         | topic  | link.event.deleted |
+     *      | exchange     | type   | routing key       |
+     *      |-------------------------------------------|
+     *      | user         | topic  | user.registered   |
+     *      | user         | topic  | user.created      |
+     *      | user         | topic  | user.updated      |
+     *      | user         | topic  | user.deleted      |
+     *      | link         | topic  | link.created      |
+     *      | link         | topic  | link.updated      |
+     *      | link         | topic  | link.deleted      |
      *      ...
      */
     @PostConstruct

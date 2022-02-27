@@ -2,11 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
+using MongoDB.Driver;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
@@ -16,7 +21,8 @@ namespace metrics_service
     {
         private readonly ILogger<Worker> _logger;
         private readonly IConfiguration _settings;
-        
+        private IMongoDatabase _db;
+
         private IConnection _connection;
         private IModel _channel;
     
@@ -30,6 +36,7 @@ namespace metrics_service
         
         public override async Task StartAsync(CancellationToken cancellationToken)
         {
+            // Connect to RabbitMQ
             string rabbitHost = _settings.GetValue<string>("RabbitMQ:Host");
             int rabbitPort = _settings.GetValue<int>("RabbitMQ:Port");
             _logger.LogInformation("Connecting to rabbit at {Host}:{Port}", rabbitHost, rabbitPort);
@@ -52,6 +59,10 @@ namespace metrics_service
             _channel.BasicQos(0, 1, false);
             _logger.LogInformation($"Connected to rabbit. Waiting for messages.");
             
+            //Connect to database
+            _db = new MongoClient(_settings.GetValue<string>("MongoDB:ConnectionString"))
+                .GetDatabase("eventsdb");
+            var events = _db.GetCollection<BsonDocument>("events");
             await base.StartAsync(cancellationToken);
         }
 
@@ -101,12 +112,21 @@ namespace metrics_service
                 {
                     _logger.LogInformation("Event receivied {Event}: {Content}", action, content);
                     
-                    // Do stuff
+                    var events = _db.GetCollection<BsonDocument>("events");
+                    events.InsertOne(new BsonDocument
+                    {
+                        ["entity"] = entity,
+                        ["type"] = action,
+                        ["receivedAt"] = DateTime.Now,
+                        ["data"] =  BsonSerializer.Deserialize<BsonDocument>(content) 
+
+                    }, cancellationToken: cancellationToken);
                     
                     _channel.BasicAck(message.DeliveryTag, false);
                 }
                 catch
                 {
+                    // TODO: Ack or Nack depending on error
                     _channel.BasicNack(message.DeliveryTag, false,false );
                 }
             };

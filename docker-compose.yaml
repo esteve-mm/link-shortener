@@ -44,12 +44,23 @@ services:
     ports:
       - "5672:5672" # RabbitMq messaging
       - "15672:15672" # Management website
+  mongo:
+    image: mongo
+    volumes:
+      - ${PWD}/mongodb_data:/todo
+    ports:
+      - '27017:27017'
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
   metrics-service:
     build:
       context: metrics-service
       dockerfile: Dockerfile
     depends_on:
       - rabbitmq
+      - mongo
       - monolith
     environment:
       RabbitMQ__Host: 'rabbitmq'
@@ -58,3 +69,4 @@ services:
       RabbitMQ__Password: "guest"
       MetricsService__Entities: 'User,Role,Link,LinkMetric'
       MetricsService__Events: 'Created,Updated,Deleted'
+      MongoDB__ConnectionString: 'mongodb://root:example@mongo:27017/'
