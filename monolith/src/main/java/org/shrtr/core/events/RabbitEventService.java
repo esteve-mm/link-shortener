@@ -17,7 +17,6 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
 import java.nio.charset.Charset;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Primary
 @Service
@@ -48,43 +47,24 @@ public class RabbitEventService implements EventService {
      *      ...
      */
     @PostConstruct
-    void declareQueues (){
+    void initRabbit (){
         List<String> entities = GetEntities().stream().map(String::toLowerCase).toList();
 
-        // Declare Exchanges
         for (String entity: entities) {
 
             var exchange = new TopicExchange(entity);
             admin.declareExchange(exchange);
         }
 
-        // Declare queues
-        Queue userRegisteredQueue = new Queue("user-registered-queue", true, false, false);
-        Binding userRegisteredQueueBinding = new Binding("user-registered-queue", Binding.DestinationType.QUEUE, "user", "user.registered", null);
-        admin.declareQueue(userRegisteredQueue);
-        admin.declareBinding(userRegisteredQueueBinding);
-
+        // Declare debug queues for the monolith to listen to the event it itself emits
         for (String entity: entities) {
 
-            List<String> actions = List.of("created", "updated", "deleted");
-            for (String action:actions) {
-
-                String queueName = entity + "-" + action + "-queue";
-                String routingKey = entity + "." + action;
-                Queue queue = new Queue(queueName, true, false, false);
-                Binding binding = new Binding(queueName, Binding.DestinationType.QUEUE, entity, routingKey, null);
-                admin.declareQueue(queue);
-                admin.declareBinding(binding);
-            }
-
-            // Debug queues for the monolith to listen to the event it itself emits
             String queueName = entity + "-monolith-debug-queue";
             String routingKey = entity + ".*"; // Receive all events related to 'entity'
             Queue debugQueue = new Queue(queueName, false, false, false);
             Binding debugQueueBinding = new Binding(queueName, Binding.DestinationType.QUEUE, entity, routingKey, null);
             admin.declareQueue(debugQueue);
             admin.declareBinding(debugQueueBinding);
-
             messageListenerContainer.addQueues(debugQueue);
         }
 

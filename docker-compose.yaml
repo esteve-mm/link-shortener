@@ -1,6 +1,7 @@
 version: '3'
 
 services:
+
   mariadb:
     image: mariadb:10.3
     ports:
@@ -12,6 +13,7 @@ services:
       MYSQL_DATABASE: 'shrtdb'
       MYSQL_USER: 'admin'
       MYSQL_PASSWORD: 'supersecret'
+
   monolith:
     #image: estevemartin/monolith:latest
     build:
@@ -31,6 +33,7 @@ services:
       interval: 1m30s
       timeout: 10s
       retries: 3
+
   tests:
     build:
       context: e2e-tests
@@ -39,11 +42,13 @@ services:
       - monolith
     environment:
       BASE_URL: 'http://monolith:8080'
+
   rabbitmq:
     image: rabbitmq:3.9.13-management
     ports:
       - "5672:5672" # RabbitMq messaging
       - "15672:15672" # Management website
+
   mongo:
     image: mongo
     volumes:
@@ -54,14 +59,16 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: example
+
   metrics-service:
     build:
       context: metrics-service
       dockerfile: Dockerfile
+    restart: on-failure
     depends_on:
       - rabbitmq
       - mongo
-      - monolith
+    command: ["./wait-for-it.sh", "rabbitmq:5672", "--", "dotnet", "metrics-service.dll"]
     environment:
       RabbitMQ__Host: 'rabbitmq'
       RabbitMQ__Port: '5672'

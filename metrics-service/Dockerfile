@@ -15,4 +15,9 @@ RUN dotnet publish "metrics-service.csproj" -c Release -o /app/publish
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "metrics-service.dll"]
+
+COPY wait-for-it.sh ./
+RUN chmod +x ./wait-for-it.sh
+
+CMD [ "dotnet", "metrics-service.dll"]
+#ENTRYPOINT ["dotnet", "metrics-service.dll"]
