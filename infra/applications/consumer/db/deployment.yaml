@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongodb-deployment
+  labels:
+    component: mongodb-deployment
+spec:
+  replicas: 1
+  serviceName: mongodb-service
+  volumeClaimTemplates:
+    - metadata:
+        name: mongodb-volume
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+  selector:
+    matchLabels:
+      component: mongodb-deployment
+  template:
+    metadata:
+      labels:
+        component: mongodb-deployment
+    spec:
+      containers:
+        - name: mongodb-deployment
+          image: mongo
+          ports:
+            - containerPort: 27017
+              name: db-port
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              value: root
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              value: example
+          volumeMounts:
+            - name: mongodb-volume
+              mountPath: /var/lib/mongo

@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+  name: rabbitmq-ingress
+spec:
+  rules:
+    - http:
+        paths:
+          - pathType: Prefix
+            path: /rabbitmq(/|$)(.*)
+            backend:
+              service:
+                name: rabbitmq-service
+                port:
+                  name: 15672tcp

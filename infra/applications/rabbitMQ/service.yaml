@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-service
+  namespace: default
+spec:
+  selector:
+    component: rabbitmq-deployment
+  ports:
+    - name: 5672tcp
+      port: 5672
+      protocol: TCP
+      targetPort: 5672
+    - name: 15672tcp
+      port: 15672
+      protocol: TCP
+      targetPort: 15672
+  type: ClusterIP

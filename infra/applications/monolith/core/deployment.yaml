@@ -24,8 +24,10 @@ spec:
         - env:
             - name: SPRING_DATASOURCE_URL
               value: 'jdbc:mariadb://mariadb-service.default.svc.cluster.local:3306/shrtdb'
+            - name: SPRING_RABBITMQ_HOST
+              value: 'rabbitmq-service.default.svc.cluster.local'
           image: estevemartin/monolith:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           livenessProbe:
             failureThreshold: 3
             initialDelaySeconds: 20

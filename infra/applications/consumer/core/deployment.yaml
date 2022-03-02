@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    component: metrics-service-deployment
+  name: metrics-service-deployment
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: metrics-service-deployment
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        component: metrics-service-deployment
+    spec:
+      containers:
+        - env:
+            - name: RabbitMQ__Host
+              value: 'rabbitmq-service.default.svc.cluster.local'
+            - name: RabbitMQ__Port
+              value: '5672'
+            - name: RabbitMQ__Username
+              value: 'guest'
+            - name: RabbitMQ__Password
+              value: 'guest'
+            - name: MetricsService__Entities
+              value: 'User,Role,Link,LinkMetric'
+            - name: MetricsService__Events
+              value: 'Created,Updated,Deleted'
+            - name: MongoDB__ConnectionString
+              value: 'mongodb://root:example@mongodb-service.default.svc.cluster.local:27017/'
+          image: estevemartin/metrics-service:latest
+          imagePullPolicy: Always
+          name: metrics-service-container
+          resources:
+            limits:
+              memory: 500Mi
+            requests:
+              cpu: 200m
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
