@@ -7,4 +7,5 @@ public interface EventService {
     void entityCreated(Object entity);
     void entityDeleted(Object entity);
     void entityUpdated(Object entity);
+    void linkRedirected(LinkRedirectedEvent event);
 }

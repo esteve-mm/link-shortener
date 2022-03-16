@@ -1,7 +1,4 @@
 using metrics_service;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
 IHost host = Host.CreateDefaultBuilder(args)
     .ConfigureHostConfiguration(cfg => cfg.AddEnvironmentVariables())

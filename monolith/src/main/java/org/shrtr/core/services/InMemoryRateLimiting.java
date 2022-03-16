@@ -6,6 +6,7 @@ import org.shrtr.core.domain.entities.User;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -17,6 +18,11 @@ import java.util.UUID;
 public class InMemoryRateLimiting implements RateLimiting {
 
     HashMap<UUID, Pair> linksRequests;
+
+    @PostConstruct
+    private void init() {
+        linksRequests = new HashMap<>();
+    }
 
     @Getter
     @Setter

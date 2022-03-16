@@ -7,12 +7,35 @@ services:
     ports:
       - '3306:3306'
     volumes:
-      - C:/Users/EsteveMartín/mariadb_data:/var/lib/mysql
+      - ./.volumes/mariadb:/var/lib/mysql
     environment:
       MYSQL_ROOT_PASSWORD: 'root'
       MYSQL_DATABASE: 'shrtdb'
       MYSQL_USER: 'admin'
       MYSQL_PASSWORD: 'supersecret'
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 128M
+        reservations:
+          memory: 128M
+
+  rabbitmq:
+    image: rabbitmq:3.9.13-management
+    ports:
+      - "5672:5672" # RabbitMq messaging
+      - "15672:15672" # Management website
+    volumes:
+      - "./.volumes/rabbitmq/data:/var/lib/rabbitmq/mnesia"
+      - "./.volumes/rabbitmq/log:/var/log/rabbitmq"
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 256M
+        reservations:
+          memory: 256M
 
   monolith:
     #image: estevemartin/monolith:latest
@@ -27,12 +50,20 @@ services:
     environment:
       SPRING_DATASOURCE_URL: 'jdbc:mariadb://mariadb:3306/shrtdb'
       SPRING_RABBITMQ_HOST: 'rabbitmq'
-    command: java -Djava.security.egd=file:/dev/./urandom -jar /app/target/shrtr-0.0.1-SNAPSHOT.jar
+    command: ["./wait-for-it.sh", "rabbitmq:5672", "--", "java", "-Djava.security.egd=file:/dev/./urandom", "-jar", "/app/target/shrtr-0.0.1-SNAPSHOT.jar"]
+    #command: java -Djava.security.egd=file:/dev/./urandom -jar /app/target/shrtr-0.0.1-SNAPSHOT.jar
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
       interval: 1m30s
       timeout: 10s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          memory: 256M
 
   tests:
     build:
@@ -43,22 +74,61 @@ services:
     environment:
       BASE_URL: 'http://monolith:8080'
 
-  rabbitmq:
-    image: rabbitmq:3.9.13-management
-    ports:
-      - "5672:5672" # RabbitMq messaging
-      - "15672:15672" # Management website
-
-  mongo:
-    image: mongo
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.7.0
     volumes:
-      - ${PWD}/mongodb_data:/todo
+      - ./.volumes/elastic/data:/usr/share/elasticsearch/data
     ports:
-      - '27017:27017'
+      - '9200:9200'
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    environment:
+      discovery.type: 'single-node'
+      ES_JAVA_OPTS: '-Xms1g -Xmx1g'
+    labels:
+      - co.elastic.logs/module=elasticsearch
+      - co.elastic.metrics/module=elasticsearch
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1024M
+        reservations:
+          memory: 1024M
+
+#  kibana:
+#    image: docker.elastic.co/kibana/kibana:7.7.0
+#    depends_on:
+#      - elasticsearch
+#    ports:
+#      - '5601:5601'
+#    environment:
+#      ELASTICSEARCH_URL: "http://elasticsearch:9200"
+#      ELASTICSEARCH_HOSTS: "http://elasticsearch:9200"
+
+  influxdb:
+    image: influxdb:2.0.7
+    volumes:
+      - ./.volumes/influxdb/data:/var/lib/influxdb2:rw
+      - ./.volumes/influxdb/config:/etc/influxdb2
+    ports:
+      - '8086:8086'
     restart: always
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: example
+      DOCKER_INFLUXDB_INIT_MODE: 'setup'
+      DOCKER_INFLUXDB_INIT_USERNAME: 'admin'
+      DOCKER_INFLUXDB_INIT_PASSWORD: '12345678'
+      DOCKER_INFLUXDB_INIT_ORG: 'shrtr'
+      DOCKER_INFLUXDB_INIT_BUCKET: 'reporting'
+    deploy:
+      resources:
+        limits:
+          cpus: '0.8'
+          memory: 512M
+        reservations:
+          memory: 512M
 
   metrics-service:
     build:
@@ -67,13 +137,23 @@ services:
     restart: on-failure
     depends_on:
       - rabbitmq
-      - mongo
+      - monolith
+      - influxdb
+      - elasticsearch
     command: ["./wait-for-it.sh", "rabbitmq:5672", "--", "dotnet", "metrics-service.dll"]
     environment:
       RabbitMQ__Host: 'rabbitmq'
       RabbitMQ__Port: '5672'
       RabbitMQ__Username: "guest"
       RabbitMQ__Password: "guest"
-      MetricsService__Entities: 'User,Role,Link,LinkMetric'
-      MetricsService__Events: 'Created,Updated,Deleted'
-      MongoDB__ConnectionString: 'mongodb://root:example@mongo:27017/'
+      MetricsService__ListenToEvents: "user.created,user.updated,user.deleted,role.created,role.updated,role.deleted,link.created,link.updated,link.deleted,link.redirected"
+      InfluxDB__ConnectionString: "http://influxdb:8086/"
+      InfluxDB__Token: "w20KtiEq10KUp6pN3U6CbnmWhvlnXKbs7X51qd2S-IXV89sQlPBR3rhU6I-LltJgyNJzbdiml0-QmFrf0QbcUQ=="
+      Elasticsearch__URL: 'http://elasticsearch:9200'
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          memory: 128M

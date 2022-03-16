@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.reflections.Reflections;
 import org.shrtr.core.domain.entities.BaseEntity;
+import org.shrtr.core.domain.entities.Link;
 import org.shrtr.core.domain.entities.User;
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.core.RabbitAdmin;
@@ -112,4 +113,13 @@ public class RabbitEventService implements EventService {
 
     @Override
     public void entityUpdated(Object entity) { entityEvent(entity, "updated"); }
+
+    @Override
+    public void linkRedirected(LinkRedirectedEvent event) {
+        try {
+            rabbitTemplate.convertAndSend("link", "link.redirected", objectMapper.writeValueAsString(event));
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+    }
 }

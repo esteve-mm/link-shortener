@@ -34,5 +34,7 @@ build/
 .idea
 mariadb_data
 mongodb_data
+elastic_data
 metrics-service/metrics-service/bin/
 metrics-service/metrics-service/obj/
+.volumes/

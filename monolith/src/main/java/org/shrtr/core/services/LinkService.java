@@ -4,15 +4,18 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.shrtr.core.controllers.TooManyRequestsException;
 import org.shrtr.core.domain.entities.Link;
-import org.shrtr.core.domain.entities.LinkMetric;
 import org.shrtr.core.domain.entities.User;
-import org.shrtr.core.domain.repositories.LinkMetricsRepository;
 import org.shrtr.core.domain.repositories.LinksRepository;
+import org.shrtr.core.events.EventService;
+import org.shrtr.core.events.LinkRedirectedEvent;
+import org.springframework.data.jpa.repository.query.Jpa21Utils;
 import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
 import java.security.SecureRandom;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.TemporalField;
 import java.util.*;
 
 @Slf4j
@@ -20,7 +23,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class LinkService {
   private final LinksRepository linksRepository;
-  private final LinkMetricsRepository linkMetricsRepository;
+  private final EventService eventService;
   private final RateLimiting rateLimiting;
 
   @Transactional
@@ -43,7 +46,8 @@ public class LinkService {
   }
 
   @Transactional
-  public Optional<Link> findForRedirect(String shortened, User user) {
+  public Optional<Link> findForRedirect(String shortened) {
+    var start = System.currentTimeMillis();
 
     Optional<Link> byShortened = linksRepository.findByShortened(shortened);
 
@@ -51,10 +55,12 @@ public class LinkService {
       return byShortened;
     }
 
-    var link = byShortened.get();
-    assertRateLimitIsNotExceeded(link, user);
-    registerRedirect(link);
+    Link link = byShortened.get();
+    User owner = link.getOwner();
 
+    assertRateLimitIsNotExceeded(link, owner);
+    var latency = System.currentTimeMillis() - start;
+    emitRedirectEvent(link, latency);
     return byShortened;
   }
 
@@ -76,10 +82,6 @@ public class LinkService {
             .findAny();
   }
 
-  public List<LinkMetric> findLinkMetrics(Link link, LocalDate from, LocalDate to) {
-    return linkMetricsRepository.findAllByDateBetweenAndLink(from, to, link);
-  }
-
   private void assertRateLimitIsNotExceeded(Link link, User user) {
     if (!rateLimiting.isEnabled(user))
       return;
@@ -88,22 +90,10 @@ public class LinkService {
       throw new TooManyRequestsException();
   }
 
-  private void registerRedirect(Link link) {
-    LocalDate date = LocalDate.now();
-    Optional<LinkMetric> byLinkAndDate = linkMetricsRepository.findByLinkAndDate(link, date);
-    LinkMetric linkMetric;
-    if (byLinkAndDate.isPresent()) {
-      linkMetric = byLinkAndDate.get();
-      linkMetric.setCount(linkMetric.getCount() + 1);
-    }
-    else {
-      linkMetric = new LinkMetric();
-      linkMetric.setLink(link);
-      linkMetric.setDate(date);
-      linkMetric.setCount(1);
-    }
-    log.info("Count of {} is {}", link.getShortened(), linkMetric.getCount());
-    linkMetricsRepository.save(linkMetric);
+  private void emitRedirectEvent(Link link, Long latency) {
+    LocalDateTime timestamp = LocalDateTime.now();
+    var event = new LinkRedirectedEvent(timestamp, link.getId(), link.getOriginal(), link.getShortened(), link.getOwner().getUsername(), latency);
+    eventService.linkRedirected(event);
   }
 
   private static String randomStringAlphaNumeric(int size) {

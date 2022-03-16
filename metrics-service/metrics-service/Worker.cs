@@ -1,16 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
-using MongoDB.Driver;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using InfluxDB.Client;
+using InfluxDB.Client.Api.Domain;
+using Nest;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
@@ -20,7 +13,8 @@ namespace metrics_service
     {
         private readonly ILogger<Worker> _logger;
         private readonly IConfiguration _settings;
-        private IMongoDatabase _db;
+        private InfluxDBClient _influxClient;
+        private IElasticClient _elasticClient;
 
         private IConnection _connection;
         private IModel _channel;
@@ -51,17 +45,35 @@ namespace metrics_service
                 try
                 {
                     _logger.LogInformation("Event receivied {Event}: {Content}", action, content);
-                    
-                    var events = _db.GetCollection<BsonDocument>("events");
-                    events.InsertOne(new BsonDocument
-                    {
-                        ["entity"] = entity,
-                        ["type"] = action,
-                        ["receivedAt"] = DateTime.Now,
-                        ["data"] =  BsonSerializer.Deserialize<BsonDocument>(content) 
 
-                    }, cancellationToken: cancellationToken);
-                    
+                    // InfluxDB
+                    if (action == "link.redirected")
+                    {
+                        var linkRedirected = JsonSerializer.Deserialize<LinkRedirectedEvent>(content);
+                        if (linkRedirected != null)
+                        {
+                            using var write = _influxClient.GetWriteApi();
+                            var record = InfluxDB.Client.Writes.PointData.Measurement("link-redirects")
+                                .Tag("link", linkRedirected.Id.ToString())
+                                .Tag("original", linkRedirected.Original)
+                                .Tag("shortened", linkRedirected.Shortened)
+                                .Field("latency", linkRedirected.Latency)
+                                .Timestamp(linkRedirected.Timestamp.ToUniversalTime(), WritePrecision.Ns);
+                            write.WritePoint(record, "reporting", "shrtr");
+                        }
+                    }
+                    // elastic
+                    else
+                    {
+                        var response = _elasticClient.IndexDocumentAsync(new
+                        {
+                            entity,
+                            type = action,
+                            receivedAt = DateTime.Now,
+                            data = JsonSerializer.Deserialize<dynamic>(content)
+                        }, cancellationToken);
+                    }
+
                     _channel.BasicAck(message.DeliveryTag, false);
                 }
                 catch
@@ -166,7 +178,7 @@ namespace metrics_service
                     _connection = null;
                 }
             }
-            catch (IOException e)
+            catch (IOException)
             {
                 
             }
@@ -174,43 +186,57 @@ namespace metrics_service
         
         private void ConnectToDb()
         {
-            _db = new MongoClient(_settings.GetValue<string>("MongoDB:ConnectionString"))
-                .GetDatabase("eventsdb");
-        }
+            _influxClient = InfluxDBClientFactory.Create(
+                _settings.GetValue<string>("InfluxDB:ConnectionString"),
+                _settings.GetValue<string>("InfluxDB:Token"));
 
+            var settings = new ConnectionSettings(new Uri(_settings.GetValue<string>("Elasticsearch:URL")))
+                .DefaultIndex("events");
+            // _elasticClient = new ElasticClient(settings);
+        }
+        
         private List<string> GetExchanges()
         {
-            var exchanges = _settings.GetValue<string>("MetricsService:Entities")
-                .Split(",")
-                .Select(e => e.ToLower());
-            return exchanges.ToList();
+            var events = _settings.GetValue<string>("MetricsService:ListenToEvents").Split(",");
+            return events.Select(ev => ev.Split(".")[0])
+                .Distinct()
+                .ToList();
         }
-
+        
         private List<Queue> GetQueues()
         {
-            var entities = _settings.GetValue<string>("MetricsService:Entities").Split(",");
-            var events = _settings.GetValue<string>("MetricsService:Events").Split(",");
-            
-            return (from entity in entities
-                from ev in events
-                select new Queue
+            var events = _settings.GetValue<string>("MetricsService:ListenToEvents").Split(",");
+
+            return events.Select(ev =>
+            {
+                string entity = ev.Split(".")[0];
+                string action = ev.Split(".")[1];
+                return new Queue
                 {
-                    Entity = entity,
-                    Exchange = entity.ToLower(),
-                    Topic = $"{entity}.{ev}".ToLower(),
-                    QueueName = $"{entity}-{ev}-queue".ToLower(),
-                    RoutingKey = $"{entity}.{ev}".ToLower(),
-                }).ToList();
+                    Exchange = entity,
+                    QueueName = $"{entity}-{action}-queue",
+                    RoutingKey = ev
+                };
+            }).ToList();
         }
 
         private readonly struct Queue
         {
-            public string Entity { get; init; }
             public string Exchange { get; init; }
-            public string Topic { get; init; }
             public string QueueName { get; init; }
             public string RoutingKey { get; init; }
         }
+
+        private class LinkRedirectedEvent
+        {
+            [JsonPropertyName("timestamp")] public DateTime Timestamp { get; set; }
+            [JsonPropertyName("id")] public Guid Id { get; set; }
+            [JsonPropertyName("original")] public string Original { get; set; }
+            [JsonPropertyName("shortened")] public string Shortened { get; set; }
+            [JsonPropertyName("owner")] public string Owner { get; set; }
+            [JsonPropertyName("latency")] public long Latency { get; set; }
+        }
+
     }
 }
 

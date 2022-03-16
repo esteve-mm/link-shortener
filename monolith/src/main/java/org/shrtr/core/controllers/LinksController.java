@@ -4,16 +4,12 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.shrtr.core.domain.entities.Link;
-import org.shrtr.core.domain.entities.LinkMetric;
 import org.shrtr.core.domain.entities.User;
 import org.shrtr.core.services.LinkService;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -52,20 +48,6 @@ public class LinksController {
                 .orElseThrow(NotFoundException::new);
     }
 
-    @GetMapping("/{id}/metrics")
-    public List<LinkMetricsDto> getLinkMetrics(@PathVariable("id") UUID id, @AuthenticationPrincipal User user,
-                                               @RequestParam("from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-                                               @RequestParam("to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        Optional<Link> link = linkService.getLink(user, id);
-        if (link.isPresent()) {
-            return linkService.findLinkMetrics(link.get(), from, to)
-                    .stream()
-                    .map(LinkMetricsDto::fromLinkMetric)
-                    .collect(Collectors.toList());
-        }
-        throw new NotFoundException();
-    }
-
     @Data
     public static class CreateLinkDto {
         String original;
@@ -86,19 +68,4 @@ public class LinksController {
                     .build();
         }
     }
-
-    @Builder
-    @Data
-    public static class LinkMetricsDto {
-        private LocalDate date;
-        private long count;
-
-        static LinkMetricsDto fromLinkMetric(LinkMetric linkMetric) {
-            return LinkMetricsDto.builder()
-                    .count(linkMetric.getCount())
-                    .date(linkMetric.getDate())
-                    .build();
-        }
-    }
-
 }
