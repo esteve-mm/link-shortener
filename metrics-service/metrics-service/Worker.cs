@@ -77,13 +77,18 @@ namespace metrics_service
                         };
                         
                         var response = _elasticClient.IndexDocument(ev);
+                        if (!response.IsValid)
+                        {
+                            throw new Exception(response.ServerError?.Error?.Reason);
+                        }
                     }
 
                     _channel.BasicAck(message.DeliveryTag, false);
                 }
-                catch
+                catch (Exception e)
                 {
                     // TODO: Ack or Nack depending on error
+                    _logger.LogError(e, "Oops :/ somethind went wrong,");
                     _channel.BasicNack(message.DeliveryTag, false,false );
                 }
             };
