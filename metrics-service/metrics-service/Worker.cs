@@ -1,11 +1,14 @@
 using System.Text;
-using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using InfluxDB.Client;
 using InfluxDB.Client.Api.Domain;
 using Nest;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace metrics_service
 {
@@ -65,13 +68,15 @@ namespace metrics_service
                     // elastic
                     else
                     {
-                        var response = _elasticClient.IndexDocumentAsync(new
+                        var ev = new Event
                         {
-                            entity,
-                            type = action,
-                            receivedAt = DateTime.Now,
-                            data = JsonSerializer.Deserialize<dynamic>(content)
-                        }, cancellationToken);
+                            Entity = entity,
+                            Type = action,
+                            ReceivedAt = DateTime.Now,
+                            Data = Deserialize(content)
+                        };
+                        
+                        var response = _elasticClient.IndexDocument(ev);
                     }
 
                     _channel.BasicAck(message.DeliveryTag, false);
@@ -191,8 +196,8 @@ namespace metrics_service
                 _settings.GetValue<string>("InfluxDB:Token"));
 
             var settings = new ConnectionSettings(new Uri(_settings.GetValue<string>("Elasticsearch:URL")))
-                .DefaultIndex("events");
-            // _elasticClient = new ElasticClient(settings);
+                .DefaultIndex("events"); 
+            _elasticClient = new ElasticClient(settings);
         }
         
         private List<string> GetExchanges()
@@ -218,6 +223,36 @@ namespace metrics_service
                     RoutingKey = ev
                 };
             }).ToList();
+        }
+
+        private static object Deserialize(string json)
+        {
+            return ToObject(JToken.Parse(json));
+        }
+
+        private static object ToObject(JToken token)
+        {
+            switch (token.Type)
+            {
+                case JTokenType.Object:
+                    return token.Children<JProperty>()
+                        .ToDictionary(prop => prop.Name,
+                            prop => ToObject(prop.Value));
+
+                case JTokenType.Array:
+                    return token.Select(ToObject).ToList();
+
+                default:
+                    return ((JValue)token).Value;
+            }
+        }
+
+        public class Event
+        {
+            public string Entity { get; set; }
+            public string Type { get; set; }
+            public DateTime ReceivedAt { get; set; }
+            public object Data { get; set; }
         }
 
         private readonly struct Queue
